@@ -1,44 +1,19 @@
-name: Windows RDP with Ngrok
+name: Ngrok RDP
 
-on: [push]
+on:
+  push:
+    branches:
+      - main
 
 jobs:
-  setup-rdp:
-    runs-on: windows-latest
-
+  build:
+    runs-on: ubuntu-latest
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
-
-    - name: Install Chocolatey
-      run: |
-        Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-
-    - name: Install dependencies
-      run: |
-        choco install -y git openssh wget
-        choco install -y --params "/InstallDir:C:\tools" vcredist-all
-        choco install -y xfce4
-        choco install -y xrdp
-
-    - name: Install Ngrok
-      run: |
-        wget https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip
-        Expand-Archive -Path ngrok-stable-windows-amd64.zip -DestinationPath $env:ProgramFiles\Ngrok
-
-    - name: Start Ngrok and keep it running
-      run: |
-        Start-Process -NoNewWindow -Wait -FilePath "$env:ProgramFiles\Ngrok\ngrok.exe" -ArgumentList "authtoken 2hfvYeIbEcWJhPyr02JxWLt0eph_7ChP5LHejGk8AWNDB3q1p"
-        Start-Process -NoNewWindow -Wait -FilePath "$env:ProgramFiles\Ngrok\ngrok.exe" -ArgumentList "tcp 3389"
-
-    - name: Get Ngrok URL
-      run: |
-        sleep 10
-        $ngrokTunnels = (Invoke-WebRequest http://127.0.0.1:4040/api/tunnels).Content | ConvertFrom-Json
-        $ngrokTunnel = $ngrokTunnels.tunnels | Where-Object { $_.proto -eq "tcp" }
-        $ngrokTunnel.public_url | Out-File -FilePath ngrok_url.txt
-
-    - name: Print Ngrok URL
-      run: |
-        Get-Content ngrok_url.txt
-        Write-Host "RDP is set up. Connect using the above Ngrok URL."
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+      - name: Install Ngrok
+        run: |
+          wget https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip
+          unzip ngrok-stable-linux-amd64.zip
+      - name: Start Ngrok Tunnel
+        run: ./ngrok tcp 3389
