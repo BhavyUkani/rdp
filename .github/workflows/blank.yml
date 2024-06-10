@@ -15,13 +15,14 @@ jobs:
         sudo apt update
         sudo apt install -y xfce4 xfce4-goodies xorg dbus-x11 x11-xserver-utils xrdp
         sudo systemctl enable xrdp
-        sudo adduser github
+        sudo adduser --disabled-password --gecos "" github
         echo 'github:github' | sudo chpasswd
         sudo adduser github sudo
-        echo 'xfce4-session' > /home/github/.xsession
+        echo 'xfce4-session' | sudo tee /home/github/.xsession
+        sudo chown github:github /home/github/.xsession
         sudo systemctl restart xrdp
         sudo ufw allow 3389/tcp
-        sudo ufw enable
+        echo "y" | sudo ufw enable
 
     - name: Download ngrok
       run: |
@@ -31,12 +32,18 @@ jobs:
 
     - name: Start ngrok
       env:
-        NGROK_TOKEN: 2hfusNPJ1KZmfwFd3ICIMzNRJJO_7dGHQqvm41hWPtFu1mzPE
+        NGROK_TOKEN: 2hfvYeIbEcWJhPyr02JxWLt0eph_7ChP5LHejGk8AWNDB3q1p
       run: |
-        ngrok config add-authtoken 2hfusNPJ1KZmfwFd3ICIMzNRJJO_7dGHQqvm41hWPtFu1mzPE
+        ngrok config add-authtoken $NGROK_TOKEN
         nohup ngrok tcp 3389 --log=stdout &
 
     - name: Display ngrok URL
       run: |
         sleep 10
         curl -s localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'
+
+    - name: Output ngrok logs
+      run: cat nohup.out
+
+    - name: Check xrdp status
+      run: sudo systemctl status xrdp
