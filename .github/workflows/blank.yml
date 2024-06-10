@@ -1,45 +1,44 @@
-name: Ubuntu RDP with Ngrok
+name: Windows RDP with Ngrok
 
 on: [push]
 
 jobs:
   setup-rdp:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
 
+    - name: Install Chocolatey
+      run: |
+        Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+
     - name: Install dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y xfce4 xfce4-goodies xorg dbus-x11 x11-xserver-utils
-        sudo apt-get install -y xrdp
-        sudo systemctl enable xrdp
-        sudo systemctl start xrdp
-        sudo adduser github
-        sudo usermod -aG sudo github
-        echo 'github:password' | sudo chpasswd  # Replace 'password' with a secure password
+        choco install -y git openssh wget
+        choco install -y --params "/InstallDir:C:\tools" vcredist-all
+        choco install -y xfce4
+        choco install -y xrdp
 
     - name: Install Ngrok
       run: |
-        curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
-        echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
-        sudo apt-get update && sudo apt-get install ngrok
+        wget https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip
+        Expand-Archive -Path ngrok-stable-windows-amd64.zip -DestinationPath $env:ProgramFiles\Ngrok
 
     - name: Start Ngrok and keep it running
       run: |
-        ngrok authtoken 2hfvYeIbEcWJhPyr02JxWLt0eph_7ChP5LHejGk8AWNDB3q1p
-        while true; do ngrok tcp 3389; sleep 2; done &
-      continue-on-error: true
+        Start-Process -NoNewWindow -Wait -FilePath "$env:ProgramFiles\Ngrok\ngrok.exe" -ArgumentList "authtoken 2hfvYeIbEcWJhPyr02JxWLt0eph_7ChP5LHejGk8AWNDB3q1p"
+        Start-Process -NoNewWindow -Wait -FilePath "$env:ProgramFiles\Ngrok\ngrok.exe" -ArgumentList "tcp 3389"
 
     - name: Get Ngrok URL
       run: |
         sleep 10
-        curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url' > ngrok_url.txt
-      continue-on-error: true
+        $ngrokTunnels = (Invoke-WebRequest http://127.0.0.1:4040/api/tunnels).Content | ConvertFrom-Json
+        $ngrokTunnel = $ngrokTunnels.tunnels | Where-Object { $_.proto -eq "tcp" }
+        $ngrokTunnel.public_url | Out-File -FilePath ngrok_url.txt
 
     - name: Print Ngrok URL
       run: |
-        cat ngrok_url.txt
-        echo "RDP is set up. Connect using the above Ngrok URL."
+        Get-Content ngrok_url.txt
+        Write-Host "RDP is set up. Connect using the above Ngrok URL."
