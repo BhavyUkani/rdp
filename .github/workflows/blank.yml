@@ -1,0 +1,38 @@
+name: Ubuntu RDP with ngrok
+
+on: [push]
+
+jobs:
+  rdp-server:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Install xfce4 and xrdp
+      run: |
+        sudo apt update
+        sudo apt install -y xfce4 xfce4-goodies xorg dbus-x11 x11-xserver-utils xrdp
+        sudo systemctl enable xrdp
+        sudo adduser github
+        echo 'github:github' | sudo chpasswd
+        sudo adduser github sudo
+        echo 'xfce4-session' >~/.xsession
+        sudo service xrdp restart
+
+    - name: Download ngrok
+      run: |
+        wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz -O ngrok.tgz
+        tar -xvzf ngrok.tgz
+        sudo mv ngrok /usr/local/bin/
+
+    - name: Start ngrok
+      env:
+        NGROK_TOKEN: 1jrNzyrnus0m6oz1xUrCKQsVQ2a_5jjS8oc7ifWnxZtftSC9H
+      run: |
+        ngrok config add-authtoken $NGROK_TOKEN
+        nohup ngrok tcp 3389 &
+
+    - name: Display ngrok URL
+      run: sleep 10 && curl -s localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'
