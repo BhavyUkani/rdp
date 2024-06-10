@@ -18,8 +18,10 @@ jobs:
         sudo adduser github
         echo 'github:github' | sudo chpasswd
         sudo adduser github sudo
-        echo 'xfce4-session' >~/.xsession
-        sudo service xrdp restart
+        echo 'xfce4-session' > /home/github/.xsession
+        sudo systemctl restart xrdp
+        sudo ufw allow 3389/tcp
+        sudo ufw enable
 
     - name: Download ngrok
       run: |
@@ -29,10 +31,12 @@ jobs:
 
     - name: Start ngrok
       env:
-        NGROK_TOKEN: 1jrNzyrnus0m6oz1xUrCKQsVQ2a_5jjS8oc7ifWnxZtftSC9H
+        NGROK_TOKEN: 2hfusNPJ1KZmfwFd3ICIMzNRJJO_7dGHQqvm41hWPtFu1mzPE
       run: |
-        ngrok config add-authtoken $NGROK_TOKEN
-        nohup ngrok tcp 3389 &
+        ngrok config add-authtoken 2hfusNPJ1KZmfwFd3ICIMzNRJJO_7dGHQqvm41hWPtFu1mzPE
+        nohup ngrok tcp 3389 --log=stdout &
 
     - name: Display ngrok URL
-      run: sleep 10 && curl -s localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'
+      run: |
+        sleep 10
+        curl -s localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'
