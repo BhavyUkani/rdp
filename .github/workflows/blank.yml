@@ -1,49 +1,45 @@
-name: Ubuntu RDP with ngrok
+name: Ubuntu RDP with Ngrok
 
 on: [push]
 
 jobs:
-  rdp-server:
+  setup-rdp:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
 
-    - name: Install xfce4 and xrdp
+    - name: Install dependencies
       run: |
-        sudo apt update
-        sudo apt install -y xfce4 xfce4-goodies xorg dbus-x11 x11-xserver-utils xrdp
+        sudo apt-get update
+        sudo apt-get install -y xfce4 xfce4-goodies xorg dbus-x11 x11-xserver-utils
+        sudo apt-get install -y xrdp
         sudo systemctl enable xrdp
-        sudo adduser --disabled-password --gecos "" github
-        echo 'github:github' | sudo chpasswd
-        sudo adduser github sudo
-        echo 'xfce4-session' | sudo tee /home/github/.xsession
-        sudo chown github:github /home/github/.xsession
-        sudo systemctl restart xrdp
-        sudo ufw allow 3389/tcp
-        echo "y" | sudo ufw enable
+        sudo systemctl start xrdp
+        sudo adduser github
+        sudo usermod -aG sudo github
+        echo 'github:password' | sudo chpasswd  # Replace 'password' with a secure password
 
-    - name: Download ngrok
+    - name: Install Ngrok
       run: |
-        wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz -O ngrok.tgz
-        tar -xvzf ngrok.tgz
-        sudo mv ngrok /usr/local/bin/
+        curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+        echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+        sudo apt-get update && sudo apt-get install ngrok
 
-    - name: Start ngrok
-      env:
-        NGROK_TOKEN: 2hfvYeIbEcWJhPyr02JxWLt0eph_7ChP5LHejGk8AWNDB3q1p
+    - name: Start Ngrok
       run: |
-        ngrok config add-authtoken $NGROK_TOKEN
-        nohup ngrok tcp 3389 --log=stdout &
+        ngrok authtoken 2hfvYeIbEcWJhPyr02JxWLt0eph_7ChP5LHejGk8AWNDB3q1p
+        ngrok tcp 3389 &
+      continue-on-error: true
 
-    - name: Display ngrok URL
+    - name: Get Ngrok URL
       run: |
         sleep 10
-        curl -s localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'
+        curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[0].public_url' > ngrok_url.txt
+      continue-on-error: true
 
-    - name: Output ngrok logs
-      run: cat nohup.out
-
-    - name: Check xrdp status
-      run: sudo systemctl status xrdp
+    - name: Print Ngrok URL
+      run: |
+        cat ngrok_url.txt
+        echo "RDP is set up. Connect using the above Ngrok URL."
