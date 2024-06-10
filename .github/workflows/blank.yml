@@ -43,3 +43,11 @@ jobs:
       run: |
         cat ngrok_url.txt
         echo "RDP is set up. Connect using the above Ngrok URL."
+
+    - name: Perform post-checkout tasks
+      run: |
+        # Add your post-checkout commands here
+        echo "Performing post-checkout tasks..."
+        # Example command: Listing the contents of the repository
+        ls -la
+        # You can add other commands as needed
